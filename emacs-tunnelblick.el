@@ -117,7 +117,7 @@
     (tunnelblick--execute-command "connect" profile)))
 
 ;;;###autoload
-(defun tunnelblick-disconnect  ()
+(defun tunnelblick/disconnect  ()
   "Interactively disconnect from a tunnelblick profile."
   (interactive)
   (let ((profile (completing-read "Select Profile: "
@@ -127,13 +127,13 @@
     (tunnelblick--execute-command "disconnect" profile)))
 
 ;;;###autoload
-(defun tunnelblick-disconnect-all ()
+(defun tunnelblick/disconnect-all ()
   "Disconnect from all tunnelblick profiles."
   (interactive)
   (tunnelblick--execute-command "disconnect" "--all"))
 
 ;;;###autoload
-(defun tunnelblick-list-profiles ()
+(defun tunnelblick/list-profiles ()
   "List all tunnelblick profiles."
   (interactive)
   (let ((profiles (tunnelblick--list-profiles)))
