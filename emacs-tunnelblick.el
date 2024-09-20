@@ -1,4 +1,4 @@
-;;; tunnelblick.el --  Tunnelblick
+;;; emacs-tunnelblick.el --  Tunnelblick
 
 ;; Copyright (C) 2023  Andrew Parisi
 
@@ -74,7 +74,6 @@
 (define-minor-mode tunnelblick-mode
     "A mode for displaying tunnelblick results."
   :init-value nil)
-(evil-define-minor-mode-key 'normal 'tunnelblick-mode "q" 'tunnelblick-quit)
 
 (defmacro with-tunnelblick-buffer (buffer-name &rest body)
   "Execute BODY in the context of BUFFER-NAME."
@@ -133,6 +132,7 @@
   (interactive)
   (tunnelblick--execute-command "disconnect" "--all"))
 
+;;;###autoload
 (defun tunnelblick-list-profiles ()
   "List all tunnelblick profiles."
   (interactive)
@@ -167,6 +167,7 @@
     (with-tunnelblick-buffer *tunnelblick/buffer*
       (tunnelblick--insert-statuses statuses))))
 
+;;;###autoload
 (defun tunnelblick/add-profile ()
   "Add a profile to tunnelblick."
   (interactive)
@@ -175,6 +176,7 @@
 
 ;;; TODO: Create a way to delete a tunnelblick profile
 
+;;;###autoload
 (defun tunnelblick/kill ()
   "Kill the running tunnelblick process."
   (interactive)
@@ -190,5 +192,5 @@
    ("s" "Status"           tunnelblick/status)])
 
 
-(provide 'tunnelblick)
-;;; tunnelblick.el ends here
+(provide 'emacs-tunnelblick)
+;;; emacs-tunnelblick.el ends here
