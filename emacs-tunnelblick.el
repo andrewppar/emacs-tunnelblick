@@ -107,6 +107,11 @@
     (insert (format "%s\n" profile))))
 
 ;;;###autoload
+(defun tunnelblick/connect-profile (profile)
+  "Connect to a tunnelblick PROFILE."
+  (tunnelblick--execute-command "connect" profile))
+
+;;;###autoload
 (defun tunnelblick/connect ()
   "Interactively connect to a tunnelblick profile."
   (interactive)
