@@ -5,7 +5,7 @@
 ;; Author: Andrew Parisi <anparisi@cisco.com>
 ;; URL: https://github.com/andrewppar/emacs-tunnelblick
 ;; Keywords: elisp, tunnelblick, vpn
-;; Package-Requires: ((emacs "25.2") (transient "0.6.0"))
+;; Package-Requires: ((emacs "25.2"))
 ;; Package-Version: 0.1.0
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -30,7 +30,6 @@
 ;;  3. tunnelblick-list-connections
 
 ;;; Code:
-(require 'transient)
 
 (defconst *tunnelblick/buffer* "*tunnelblick*")
 
@@ -73,7 +72,11 @@
 
 (define-minor-mode tunnelblick-mode
     "A mode for displaying tunnelblick results."
-  :init-value nil)
+  :init-value nil
+  :keymap (let ((map (make-sparse-keymap)))
+            (define-key map (kbd "q") #'tunnelblick/quit)
+            map))
+
 
 (defmacro with-tunnelblick-buffer (buffer-name &rest body)
   "Execute BODY in the context of BUFFER-NAME."
@@ -187,14 +190,14 @@
   (interactive)
   (tunnelblick--execute-command "quit"))
 
-(transient-define-prefix tunnelblick-transient ()
-    "Transient Command for Tunnelblick."
-  ["Menu: Tunnelblick"
-   ("c" "Connect"          tunnelblick/connect)
-   ("d" "Disconnect All"   tunnelblick/disconnect-all)
-   ("l" "List Connections" tunnelblick/list-profiles)
-   ("i" "Add Profile"      tunnelblick/add-profile)
-   ("s" "Status"           tunnelblick/status)])
+;;(transient-define-prefix tunnelblick-transient ()
+;;    "Transient Command for Tunnelblick."
+;;  ["Menu: Tunnelblick"
+;;   ("c" "Connect"          tunnelblick/connect)
+;;   ("d" "Disconnect All"   tunnelblick/disconnect-all)
+;;   ("l" "List Connections" tunnelblick/list-profiles)
+;;   ("i" "Add Profile"      tunnelblick/add-profile)
+;;   ("s" "Status"           tunnelblick/status)])
 
 
 (provide 'emacs-tunnelblick)
