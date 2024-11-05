@@ -72,9 +72,9 @@
 
 (define-minor-mode tunnelblick-mode
     "A mode for displaying tunnelblick results."
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "q") #'tunnelblick/quit)
-            map))
+  :init-value nil
+  :lighter " tunnelblick"
+  :keymap `((,(kbd "q") . tunnelblick/quit)))
 
 (defmacro with-tunnelblick-buffer (buffer-name &rest body)
   "Execute BODY in the context of BUFFER-NAME."
