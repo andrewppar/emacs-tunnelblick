@@ -31,7 +31,7 @@
 
 ;;; Code:
 
-(defconst tunnelblick/buffer "*tunnelblick*")
+(defconst tunnelblick-buffer "*tunnelblick*")
 
 (defconst *tunnelblickctl*
   (let ((which-response (string-trim
@@ -63,18 +63,18 @@
       (setq result (tunnelblick--execute-command-internal command args)))
     result))
 
-(defun tunnelblick/quit ()
+(defun tunnelblick-quit ()
   "Close the current tunnelblick buffer and return to *window-layout*."
   (interactive)
   (when tunnelblick--current-layout
     (set-window-configuration tunnelblick--current-layout))
-  (kill-buffer tunnelblick/buffer))
+  (kill-buffer tunnelblick-buffer))
 
 (define-minor-mode tunnelblick-mode
     "A mode for displaying tunnelblick results."
   :init-value nil
   :lighter " tunnelblick"
-  :keymap `((,(kbd "C-c C-q") . tunnelblick/quit)))
+  :keymap `((,(kbd "C-c C-q") . tunnelblick-quit)))
 
 (defmacro with-tunnelblick-buffer (buffer-name &rest body)
   "Execute BODY in the context of BUFFER-NAME."
@@ -108,12 +108,12 @@
     (insert (format "%s\n" profile))))
 
 ;;;###autoload
-(defun tunnelblick/connect-profile (profile)
+(defun tunnelblick-connect-profile (profile)
   "Connect to a tunnelblick PROFILE."
   (tunnelblick--execute-command "connect" profile))
 
 ;;;###autoload
-(defun tunnelblick/connect ()
+(defun tunnelblick-connect ()
   "Interactively connect to a tunnelblick profile."
   (interactive)
   (let ((profile (completing-read "Select Profile: "
@@ -136,7 +136,7 @@
      (string-split (tunnelblick--execute-command "status") "\n")))))
 
 ;;;###autoload
-(defun tunnelblick/disconnect  ()
+(defun tunnelblick-disconnect  ()
   "Interactively disconnect from a tunnelblick profile."
   (interactive)
   (if-let ((connected-profiles (tunnelblick--connected-profiles)))
@@ -145,17 +145,17 @@
     (message "No vpn profiles connected. Nothing to disconnect")))
 
 ;;;###autoload
-(defun tunnelblick/disconnect-all ()
+(defun tunnelblick-disconnect-all ()
   "Disconnect from all tunnelblick profiles."
   (interactive)
   (tunnelblick--execute-command "disconnect" "--all"))
 
 ;;;###autoload
-(defun tunnelblick/list-profiles ()
+(defun tunnelblick-list-profiles ()
   "List all tunnelblick profiles."
   (interactive)
   (let ((profiles (tunnelblick--list-profiles)))
-    (with-tunnelblick-buffer tunnelblick/buffer
+    (with-tunnelblick-buffer tunnelblick-buffer
       (tunnelblick--insert-profiles profiles))))
 
 (defun tunnelblick--insert-statuses (statuses)
@@ -176,17 +176,17 @@
 	(insert (format "%s\n" line))))))
 
 ;;;###autoload
-(defun tunnelblick/status ()
+(defun tunnelblick-status ()
   "Get the statuses of tunnelblick connections."
   (interactive)
   (let ((statuses (string-split
 		   (tunnelblick--execute-command "status")
 		   "\n")))
-    (with-tunnelblick-buffer tunnelblick/buffer
+    (with-tunnelblick-buffer tunnelblick-buffer
       (tunnelblick--insert-statuses statuses))))
 
 ;;;###autoload
-(defun tunnelblick/add-profile ()
+(defun tunnelblick-add-profile ()
   "Add a profile to tunnelblick."
   (interactive)
   (let ((new-profile (read-file-name "Select a profile configuration: " nil nil t)))
@@ -195,10 +195,14 @@
 ;;; TODO: Create a way to delete a tunnelblick profile
 
 ;;;###autoload
-(defun tunnelblick/kill ()
+(defun tunnelblick-kill ()
   "Kill the running tunnelblick process."
   (interactive)
   (tunnelblick--execute-command "quit"))
 
 (provide 'emacs-tunnelblick)
 ;;; emacs-tunnelblick.el ends here
+
+;; Local Variables:
+;; nameless-current-name: "tunnelblick"
+;; End:
