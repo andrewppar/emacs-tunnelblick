@@ -31,7 +31,7 @@
 
 ;;; Code:
 
-(defconst tbk/buffer "*tunnelblick*")
+(defconst tunnelblick/buffer "*tunnelblick*")
 
 (defconst *tunnelblickctl*
   (let ((which-response (string-trim
@@ -40,9 +40,9 @@
 	(error "Cannot use emacs-tunnelblick without installing tunnelblickctl")
       which-response)))
 
-(defvar tbk-current-layout nil)
+(defvar tunnelblick--current-layout nil)
 
-(defun tbk-execute-command-internal (command args)
+(defun tunnelblick--execute-command-internal (command args)
   "Execute a tunnelblick COMMAND on ARGS without any error handling."
   (save-window-excursion
     (let ((tmp-buffer (switch-to-buffer (make-temp-name "tunnelblick")))
@@ -52,34 +52,34 @@
       (kill-buffer tmp-buffer)
       result)))
 
-(defun tbk-execute-command (command &rest args)
+(defun tunnelblick--execute-command (command &rest args)
   "Execute a tunnelblick COMMAND with ARGS."
-  (let ((result (tbk-execute-command-internal command args))
+  (let ((result (tunnelblick--execute-command-internal command args))
 	(not-running-message "Error: Tunnelblick is not running"))
     (when (string-match-p (regexp-quote not-running-message) result)
       (message "Tunnelblick is not running... attempting to start")
-      (tbk-execute-command-internal "launch" nil)
+      (tunnelblick--execute-command-internal "launch" nil)
       (sleep-for 1)
-      (setq result (tbk-execute-command-internal command args)))
+      (setq result (tunnelblick--execute-command-internal command args)))
     result))
 
-(defun tbk/quit ()
+(defun tunnelblick/quit ()
   "Close the current tunnelblick buffer and return to *window-layout*."
   (interactive)
-  (when tbk-current-layout
-    (set-window-configuration tbk-current-layout))
-  (kill-buffer *tbk/buffer*))
+  (when tunnelblick--current-layout
+    (set-window-configuration tunnelblick--current-layout))
+  (kill-buffer tunnelblick/buffer))
 
 (define-minor-mode tunnelblick-mode
     "A mode for displaying tunnelblick results."
   :init-value nil
   :lighter " tunnelblick"
-  :keymap `((,(kbd "C-c C-q") . tbk/quit)))
+  :keymap `((,(kbd "C-c C-q") . tunnelblick/quit)))
 
 (defmacro with-tunnelblick-buffer (buffer-name &rest body)
   "Execute BODY in the context of BUFFER-NAME."
   `(progn
-     (setq tbk-current-layout (current-window-configuration))
+     (setq tunnelblick--current-layout (current-window-configuration))
      (split-window)
      (switch-to-buffer ,buffer-name)
      (when buffer-read-only
@@ -91,16 +91,16 @@
      (evil-normalize-keymaps)
      (read-only-mode 1)))
 
-(defun tbk-list-profiles ()
+(defun tunnelblick--list-profiles ()
   "List all profiles available for tunnelblick."
   (let ((result '()))
-    (dolist (line (split-string (tbk-execute-command "ls")))
+    (dolist (line (split-string (tunnelblick--execute-command "ls")))
       (let ((profile (string-trim line)))
 	(unless (equal profile "")
 	  (push profile result))))
     result))
 
-(defun tbk-insert-profiles (profiles)
+(defun tunnelblick--insert-profiles (profiles)
   "Insert PROFILES into the current buffer."
   (insert (propertize "PROFILES\n" 'face '(:foreground "green")))
   (insert (propertize "--------\n" 'face '(:foreground "green")))
@@ -108,22 +108,22 @@
     (insert (format "%s\n" profile))))
 
 ;;;###autoload
-(defun tbk/connect-profile (profile)
+(defun tunnelblick/connect-profile (profile)
   "Connect to a tunnelblick PROFILE."
-  (tbk-execute-command "connect" profile))
+  (tunnelblick--execute-command "connect" profile))
 
 ;;;###autoload
-(defun tbk/connect ()
+(defun tunnelblick/connect ()
   "Interactively connect to a tunnelblick profile."
   (interactive)
   (let ((profile (completing-read "Select Profile: "
-				  (tbk-list-profiles)
+				  (tunnelblick--list-profiles)
 				  nil
 				  t)))
-    (tbk-execute-command "connect" profile)))
+    (tunnelblick--execute-command "connect" profile)))
 
 ;; this could be generalized and used for all status lists...
-(defun tbk-connected-profiles ()
+(defun tunnelblick--connected-profiles ()
   "Get the tunnelblick profiles that are currently connected."
   (mapcar
    #'car
@@ -133,32 +133,32 @@
     (mapcar
      (lambda (line)
        (string-split line " " t))
-     (string-split (tbk-execute-command "status") "\n")))))
+     (string-split (tunnelblick--execute-command "status") "\n")))))
 
 ;;;###autoload
-(defun tbk/disconnect  ()
+(defun tunnelblick/disconnect  ()
   "Interactively disconnect from a tunnelblick profile."
   (interactive)
-  (if-let ((connected-profiles (tbk-connected-profiles)))
+  (if-let ((connected-profiles (tunnelblick--connected-profiles)))
       (let ((profile (completing-read "Select Profile: " connected-profiles nil t)))
-	(tbk-execute-command "disconnect" profile))
+	(tunnelblick--execute-command "disconnect" profile))
     (message "No vpn profiles connected. Nothing to disconnect")))
 
 ;;;###autoload
-(defun tbk/disconnect-all ()
+(defun tunnelblick/disconnect-all ()
   "Disconnect from all tunnelblick profiles."
   (interactive)
-  (tbk-execute-command "disconnect" "--all"))
+  (tunnelblick--execute-command "disconnect" "--all"))
 
 ;;;###autoload
-(defun tbk/list-profiles ()
+(defun tunnelblick/list-profiles ()
   "List all tunnelblick profiles."
   (interactive)
-  (let ((profiles (tbk-list-profiles)))
-    (with-tunnelblick-buffer tbk/buffer
-      (tbk-insert-profiles profiles))))
+  (let ((profiles (tunnelblick--list-profiles)))
+    (with-tunnelblick-buffer tunnelblick/buffer
+      (tunnelblick--insert-profiles profiles))))
 
-(defun tbk-insert-statuses (statuses)
+(defun tunnelblick--insert-statuses (statuses)
   "Insert STATUSES into the current buffer."
   (dolist (status statuses)
     (let ((status-elements (string-split status " " nil))
@@ -176,32 +176,29 @@
 	(insert (format "%s\n" line))))))
 
 ;;;###autoload
-(defun tbk/status ()
+(defun tunnelblick/status ()
   "Get the statuses of tunnelblick connections."
   (interactive)
   (let ((statuses (string-split
-		   (tbk-execute-command "status")
+		   (tunnelblick--execute-command "status")
 		   "\n")))
-    (with-tunnelblick-buffer tbk/buffer
-      (tbk-insert-statuses statuses))))
+    (with-tunnelblick-buffer tunnelblick/buffer
+      (tunnelblick--insert-statuses statuses))))
 
 ;;;###autoload
-(defun tbk/add-profile ()
+(defun tunnelblick/add-profile ()
   "Add a profile to tunnelblick."
   (interactive)
   (let ((new-profile (read-file-name "Select a profile configuration: " nil nil t)))
-    (tbk-execute-command "install" new-profile)))
+    (tunnelblick--execute-command "install" new-profile)))
 
 ;;; TODO: Create a way to delete a tunnelblick profile
 
 ;;;###autoload
-(defun tbk/kill ()
+(defun tunnelblick/kill ()
   "Kill the running tunnelblick process."
   (interactive)
-  (tbk-execute-command "quit"))
+  (tunnelblick--execute-command "quit"))
 
 (provide 'emacs-tunnelblick)
 ;;; emacs-tunnelblick.el ends here
-;; Local Variables:
-;; read-symbol-shorthands: (("tbk-" . "tunnelblick--") ("tbk/" . "tunnelblick/"))
-;; End:
