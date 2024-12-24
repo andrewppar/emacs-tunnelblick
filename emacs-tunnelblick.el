@@ -33,7 +33,7 @@
 
 (defconst tunnelblick-buffer "*tunnelblick*")
 
-(defconst *tunnelblickctl*
+(defvar *tunnelblickcli*
   (let ((which-response (string-trim
 			 (shell-command-to-string "which tunnelblickctl"))))
     (if (string-match-p (regexp-quote "command not found") which-response)
@@ -47,7 +47,7 @@
   (save-window-excursion
     (let ((tmp-buffer (switch-to-buffer (make-temp-name "tunnelblick")))
 	  (result nil))
-      (apply #'call-process *tunnelblickctl* nil tmp-buffer nil command args)
+      (apply #'call-process *tunnelblickcli* nil tmp-buffer nil command args)
       (setq result (buffer-substring-no-properties (point-min) (point-max)))
       (kill-buffer tmp-buffer)
       result)))
