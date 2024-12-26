@@ -30,27 +30,62 @@
 ;;  3. tunnelblick-list-connections
 
 ;;; Code:
+(require 'cl-macs)
 
 (defconst tunnelblick-buffer "*tunnelblick*")
 
-(defvar *tunnelblickcli*
-  (let ((which-response (string-trim
-			 (shell-command-to-string "which tunnelblickctl"))))
-    (if (string-match-p (regexp-quote "command not found") which-response)
-	(error "Cannot use emacs-tunnelblick without installing tunnelblickctl")
-      which-response)))
+;;;###autoload
+(defvar tunnelblick/cli
+  ""
+  "name or path of the tunnelblick command line tool to use.")
+
+(defvar tunnelblick--cli
+  (list :path nil :type nil)
+  "internal representation of the tunnelblickcli.")
+
+(defun tunnelblick--initialize-from-var ()
+  "Initialize emacs-tunnelblick from *TUNNELBLICKCLI*"
+  (let* ((path (executable-find tunnelblick/cli))
+	 (tunnelblick-type nil))
+    ;; try to guess type
+    (cond ((string-match-p "tunnelblickctl" path)
+	   (setq tunnelblick-type :tunnelblickctl))
+	  ((string-match-p "barbara" path)
+	   (setq tunnelblick-type :barbara))
+	  (t
+	   (error (format "%s is not a supported tunnelblick cli"
+			  tunnelblick/cli))))
+    (list :path path :type tunnelblick-type)))
+
+(defun tunnelblick--initialize-cli ()
+  (unless (plist-get tunnelblick--cli :path)
+    (cond ((executable-find tunnelblick/cli)
+	   (setq tunnelblick--cli
+		 (tunnelblick--initialize-from-var)))
+	  ;; try to guess tunnelblick controller
+	  ((executable-find "tunnelblickctl")
+	   (setq tunnelblick--cli
+		 (list :path (executable-find "tunnelblickctl")
+		       :type :tunnelblickctl)))
+	  ((executable-find "barbara")
+	   (setq tunnelblick--cli
+		 (list :path (executable-find "barbara")
+		       :type :barbara)))
+	  (t (error "Cannot find tunnelblick CLI")))))
 
 (defvar tunnelblick--current-layout nil)
 
 (defun tunnelblick--execute-command-internal (command args)
   "Execute a tunnelblick COMMAND on ARGS without any error handling."
-  (save-window-excursion
-    (let ((tmp-buffer (switch-to-buffer (make-temp-name "tunnelblick")))
-	  (result nil))
-      (apply #'call-process *tunnelblickcli* nil tmp-buffer nil command args)
-      (setq result (buffer-substring-no-properties (point-min) (point-max)))
-      (kill-buffer tmp-buffer)
-      result)))
+  (cl-destructuring-bind (&key path &allow-other-keys)
+      tunnelblick--cli
+    (save-window-excursion
+      (let ((tmp-buffer (switch-to-buffer (make-temp-name "tunnelblick")))
+	    (result nil))
+	(apply #'call-process path  nil tmp-buffer nil command args)
+	(setq result (buffer-substring-no-properties (point-min) (point-max)))
+	(kill-buffer tmp-buffer)
+	result))))
 
 (defun tunnelblick--execute-command (command &rest args)
   "Execute a tunnelblick COMMAND with ARGS."
@@ -94,7 +129,7 @@
 (defun tunnelblick--list-profiles ()
   "List all profiles available for tunnelblick."
   (let ((result '()))
-    (dolist (line (split-string (tunnelblick--execute-command "ls")))
+    (dolist (line (split-string (tunnelblick--execute-command "list")))
       (let ((profile (string-trim line)))
 	(unless (equal profile "")
 	  (push profile result))))
@@ -107,90 +142,137 @@
   (dolist (profile profiles)
     (insert (format "%s\n" profile))))
 
-;;;###autoload
 (defun tunnelblick-connect-profile (profile)
   "Connect to a tunnelblick PROFILE."
-  (tunnelblick--execute-command "connect" profile))
+  (cl-destructuring-bind (&key type &allow-other-keys)
+      tunnelblick--cli
+    (cl-case type
+      (:tunnelblickctl
+       (tunnelblick--execute-command "connect" profile))
+      (:barbara
+       (tunnelblick--execute-command "connect" "--configuration" profile)))))
 
 ;;;###autoload
 (defun tunnelblick-connect ()
   "Interactively connect to a tunnelblick profile."
   (interactive)
+  (tunnelblick--initialize-cli)
   (let ((profile (completing-read "Select Profile: "
 				  (tunnelblick--list-profiles)
 				  nil
 				  t)))
-    (tunnelblick--execute-command "connect" profile)))
+    (tunnelblick-connect-profile profile)))
 
-;; this could be generalized and used for all status lists...
+(defun tunnelblick--parse-status-line (line)
+  "parse LINE from status output into plist."
+  (cl-destructuring-bind (name state autoconnect tx rx &rest _ignore)
+      (string-split line)
+    (list :name name :state state :autoconnect autoconnect :tx tx :rx rx)))
+
 (defun tunnelblick--connected-profiles ()
   "Get the tunnelblick profiles that are currently connected."
-  (mapcar
-   #'car
-   (seq-filter
-    (lambda (status)
-      (equal (cadr status) "CONNECTED"))
-    (mapcar
-     (lambda (line)
-       (string-split line " " t))
-     (string-split (tunnelblick--execute-command "status") "\n")))))
+  (seq-reduce
+   (lambda (acc line)
+     (cl-destructuring-bind (&key name state &allow-other-keys)
+	 (tunnelblick--parse-status-line line)
+       (if (equal state "CONNECTED")
+	   (cons name acc)
+	 acc)))
+   (cdr (string-lines (tunnelblick--execute-command "status")))
+   '()))
 
 ;;;###autoload
 (defun tunnelblick-disconnect  ()
   "Interactively disconnect from a tunnelblick profile."
   (interactive)
+  (tunnelblick--initialize-cli)
   (if-let ((connected-profiles (tunnelblick--connected-profiles)))
       (let ((profile (completing-read "Select Profile: " connected-profiles nil t)))
-	(tunnelblick--execute-command "disconnect" profile))
+	(cl-case (plist-get tunnelblick--cli :type)
+	  (:tunnelblickctl
+	   (tunnelblick--execute-command "disconnect" profile))
+	  (:barbara
+	   (tunnelblick--execute-command "disconnect" "--configuration" profile))))
     (message "No vpn profiles connected. Nothing to disconnect")))
 
 ;;;###autoload
 (defun tunnelblick-disconnect-all ()
   "Disconnect from all tunnelblick profiles."
   (interactive)
-  (tunnelblick--execute-command "disconnect" "--all"))
+  (tunnelblick--initialize-cli)
+  (cl-case (plist-get tunnelblick--cli :type)
+    (:tunnelblickctl (tunnelblick--execute-command "disconnect" "--all"))
+    (:barbara (tunnelblick--execute-command "disconnect" "--configuration" "all"))))
 
 ;;;###autoload
 (defun tunnelblick-list-profiles ()
   "List all tunnelblick profiles."
   (interactive)
+  (tunnelblick--initialize-cli)
   (let ((profiles (tunnelblick--list-profiles)))
     (with-tunnelblick-buffer tunnelblick-buffer
       (tunnelblick--insert-profiles profiles))))
 
-(defun tunnelblick--insert-statuses (statuses)
-  "Insert STATUSES into the current buffer."
-  (dolist (status statuses)
-    (let ((status-elements (string-split status " " nil))
-	  (colored-line-items '()))
-      (dolist (element status-elements)
-	(cond ((string= element "EXITING")
-	       (push (propertize element 'face '(:foreground "red"))
-		     colored-line-items))
-	      ((string= element "CONNECTED")
-	       (push (propertize element 'face '(:foreground "green"))
-		     colored-line-items))
-	      (t
-	       (push element colored-line-items))))
-      (let ((line (string-join (reverse colored-line-items) " ")))
-	(insert (format "%s\n" line))))))
+(defun tunnelblick--key->max-val (keys maps)
+  (let ((init (seq-reduce (lambda (acc key) (plist-put acc key 0)) keys '())))
+    (seq-reduce
+     (lambda (acc map)
+       (seq-reduce
+	(lambda (acc* key)
+	  (let ((map-val (length (plist-get map key))))
+	    (if (< (plist-get acc* key) map-val)
+		(plist-put acc* key map-val)
+	      acc*)))
+	keys
+	acc))
+     maps init)))
+
+(defun tunnelblick--format-statuses (status key->max-val)
+  "Format STATUSES with KEY->MAX-VAL"
+  (string-join
+   (mapcar
+    (lambda (status-key)
+      (let* ((status-string (plist-get status status-key))
+	     (max-val (plist-get key->max-val status-key))
+	     (padding (make-string (+ (- max-val (length status-string)) 1) ?\ ))
+	     (cell-value (format "%s%s" status-string padding)))
+	(cond ((string= status-string "EXITING")
+	       (propertize cell-value 'face '(:foreground "red")))
+	      ((string= status-string "GET_CONFIG")
+	       (propertize cell-value 'face '(:foreground "yellow")))
+	      ((string= status-string "CONNECTED")
+	       (propertize cell-value 'face '(:foreground "green")))
+	      (t cell-value))))
+    (list :name :state :autoconnect :tx :rx))))
 
 ;;;###autoload
 (defun tunnelblick-status ()
   "Get the statuses of tunnelblick connections."
   (interactive)
-  (let ((statuses (string-split
-		   (tunnelblick--execute-command "status")
-		   "\n")))
+  (tunnelblick--initialize-cli)
+  (let* ((statuses (mapcar
+		    #'tunnelblick--parse-status-line
+		    (string-lines (tunnelblick--execute-command "status"))))
+	 (key->max-val (tunnelblick--key->max-val
+			(list :name :state :autoconnect :tx :rx) statuses)))
     (with-tunnelblick-buffer tunnelblick-buffer
-      (tunnelblick--insert-statuses statuses))))
+      (mapc
+       (lambda (status)
+	 (insert
+	  (format
+	   "%s\n" (tunnelblick--format-statuses status key->max-val))))
+       statuses))))
 
 ;;;###autoload
 (defun tunnelblick-add-profile ()
   "Add a profile to tunnelblick."
   (interactive)
-  (let ((new-profile (read-file-name "Select a profile configuration: " nil nil t)))
-    (tunnelblick--execute-command "install" new-profile)))
+  (tunnelblick--initialize-cli)
+  (cl-destructuring-bind (&key path &allow-other-keys) tunnelblick--cli
+    (let ((new-profile (read-file-name "Select a profile configuration: " nil nil t)))
+      (cl-case path
+	(:tunnelblickctl (tunnelblick--execute-command "install" new-profile))
+	(:barabara (error "profile installation not implemented for barbara"))))))
 
 ;;; TODO: Create a way to delete a tunnelblick profile
 
@@ -198,11 +280,8 @@
 (defun tunnelblick-kill ()
   "Kill the running tunnelblick process."
   (interactive)
+  (tunnelblick--initialize-cli)
   (tunnelblick--execute-command "quit"))
 
 (provide 'emacs-tunnelblick)
 ;;; emacs-tunnelblick.el ends here
-
-;; Local Variables:
-;; nameless-current-name: "tunnelblick"
-;; End:
