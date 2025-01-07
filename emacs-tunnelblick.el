@@ -195,6 +195,9 @@
 	   (tunnelblick--execute-command "disconnect" "--configuration" profile))))
     (message "No vpn profiles connected. Nothing to disconnect")))
 
+
+;;; TODO: Create a way to delete a tunnelblick profile
+
 ;;;###autoload
 (defun tunnelblick-disconnect-all ()
   "Disconnect from all tunnelblick profiles."
@@ -202,7 +205,7 @@
   (tunnelblick--initialize-cli)
   (cl-case (plist-get tunnelblick--cli :type)
     (:tunnelblickctl (tunnelblick--execute-command "disconnect" "--all"))
-    (:barbara (tunnelblick--execute-command "disconnect" "--configuration" "all"))))
+    (:barbara (tunnelblick--execute-command "disconnect" "--all"))))
 
 ;;;###autoload
 (defun tunnelblick-list-profiles ()
@@ -274,7 +277,30 @@
 	(:tunnelblickctl (tunnelblick--execute-command "install" new-profile))
 	(:barabara (error "profile installation not implemented for barbara"))))))
 
-;;; TODO: Create a way to delete a tunnelblick profile
+;;;###autoload
+(defun tunnelblick-profile-set-credentials ()
+  "Add credentials to a tunnelblick profile."
+  (interactive)
+  (tunnelblick--initialize-cli)
+  (cl-destructuring-bind (&key path &allow-other-keys) tunnelblick--cli
+    (let ((profile (completing-read
+		    "Select Profile: " (tunnelblick--list-profiles) nil t))
+	  (username (read-string "Username: "))
+	  (password (read-string "Password: ")))
+      (cl-case path
+	(:tunnelblickctl
+	 (error "credential setting not implemented for tunnelblickctl"))
+	(:barabara
+	 (let ((args '()))
+	   (unless (equal username "")
+	     (push username args)
+	     (push "--username" args))
+	   (unless (equal password "")
+	     (push password args)
+	     (push "--password" args))
+	   (dolist (item (reverse (list "credentials" "set" "--profile" profile)))
+	     (push item args))
+	   (apply #'tunnelblick--execute-command args)))))))
 
 ;;;###autoload
 (defun tunnelblick-kill ()
