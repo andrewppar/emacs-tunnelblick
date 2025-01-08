@@ -77,6 +77,7 @@
 
 (defun tunnelblick--execute-command-internal (command args)
   "Execute a tunnelblick COMMAND on ARGS without any error handling."
+  (tunnelblick--initialize-cli)
   (cl-destructuring-bind (&key path &allow-other-keys)
       tunnelblick--cli
     (save-window-excursion
@@ -202,7 +203,6 @@
 (defun tunnelblick-disconnect-all ()
   "Disconnect from all tunnelblick profiles."
   (interactive)
-  (tunnelblick--initialize-cli)
   (cl-case (plist-get tunnelblick--cli :type)
     (:tunnelblickctl (tunnelblick--execute-command "disconnect" "--all"))
     (:barbara (tunnelblick--execute-command "disconnect" "--all"))))
@@ -211,7 +211,6 @@
 (defun tunnelblick-list-profiles ()
   "List all tunnelblick profiles."
   (interactive)
-  (tunnelblick--initialize-cli)
   (let ((profiles (tunnelblick--list-profiles)))
     (with-tunnelblick-buffer tunnelblick-buffer
       (tunnelblick--insert-profiles profiles))))
@@ -252,7 +251,6 @@
 (defun tunnelblick-status ()
   "Get the statuses of tunnelblick connections."
   (interactive)
-  (tunnelblick--initialize-cli)
   (let* ((statuses (mapcar
 		    #'tunnelblick--parse-status-line
 		    (string-lines (tunnelblick--execute-command "status"))))
@@ -270,7 +268,6 @@
 (defun tunnelblick-add-profile ()
   "Add a profile to tunnelblick."
   (interactive)
-  (tunnelblick--initialize-cli)
   (cl-destructuring-bind (&key path &allow-other-keys) tunnelblick--cli
     (let ((new-profile (read-file-name "Select a profile configuration: " nil nil t)))
       (cl-case path
@@ -281,7 +278,6 @@
 (defun tunnelblick-profile-set-credentials ()
   "Add credentials to a tunnelblick profile."
   (interactive)
-  (tunnelblick--initialize-cli)
   (cl-destructuring-bind (&key path &allow-other-keys) tunnelblick--cli
     (let ((profile (completing-read
 		    "Select Profile: " (tunnelblick--list-profiles) nil t))
@@ -306,7 +302,6 @@
 (defun tunnelblick-kill ()
   "Kill the running tunnelblick process."
   (interactive)
-  (tunnelblick--initialize-cli)
   (tunnelblick--execute-command "quit"))
 
 (provide 'emacs-tunnelblick)
