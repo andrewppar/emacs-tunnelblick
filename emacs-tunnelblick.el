@@ -157,7 +157,6 @@
 (defun tunnelblick-connect ()
   "Interactively connect to a tunnelblick profile."
   (interactive)
-  (tunnelblick--initialize-cli)
   (let ((profile (completing-read "Select Profile: "
 				  (tunnelblick--list-profiles)
 				  nil
@@ -186,7 +185,6 @@
 (defun tunnelblick-disconnect  ()
   "Interactively disconnect from a tunnelblick profile."
   (interactive)
-  (tunnelblick--initialize-cli)
   (if-let ((connected-profiles (tunnelblick--connected-profiles)))
       (let ((profile (completing-read "Select Profile: " connected-profiles nil t)))
 	(cl-case (plist-get tunnelblick--cli :type)
