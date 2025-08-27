@@ -37,14 +37,14 @@
 ;;;###autoload
 (defvar tunnelblick/cli
   ""
-  "name or path of the tunnelblick command line tool to use.")
+  "Name or path of the tunnelblick command line tool to use.")
 
 (defvar tunnelblick--cli
   (list :path nil :type nil)
-  "internal representation of the tunnelblickcli.")
+  "Internal representation of the tunnelblickcli.")
 
 (defun tunnelblick--initialize-from-var ()
-  "Initialize emacs-tunnelblick from *TUNNELBLICKCLI*"
+  "Initialize emacs-tunnelblick from *TUNNELBLICKCLI*."
   (let* ((path (executable-find tunnelblick/cli))
 	 (tunnelblick-type nil))
     ;; try to guess type
@@ -58,6 +58,12 @@
     (list :path path :type tunnelblick-type)))
 
 (defun tunnelblick--initialize-cli ()
+  "Initialize Tunnelblick CLI interface.
+This function sets the `tunnelblick--cli' plist with the path and type
+of the CLI executable to use.  It first checks if the path is already set,
+then tries to find the executable based on `tunnelblick/cli' variable,
+or falls back to known CLI tools like `tunnelblickctl' or `barbara'.
+Signals an error if no CLI executable can be found."
   (unless (plist-get tunnelblick--cli :path)
     (cond ((executable-find tunnelblick/cli)
 	   (setq tunnelblick--cli
@@ -166,7 +172,7 @@
     (tunnelblick-connect-profile profile)))
 
 (defun tunnelblick--parse-status-line (line)
-  "parse LINE from status output into plist."
+  "Parse LINE from status output into plist."
   (cl-destructuring-bind (name state autoconnect tx rx &rest _ignore)
       (string-split line)
     (list :name name :state state :autoconnect autoconnect :tx tx :rx rx)))
@@ -219,6 +225,12 @@
       (tunnelblick--insert-profiles profiles))))
 
 (defun tunnelblick--key->max-val (keys maps)
+  "Compute maximum length of corresponding values for each key across maps.
+KEYS is a list of keys (symbols) to check for in each map.
+MAPS is a list of property lists to examine.
+
+Returns a plist where each key from KEYS is associated with the maximum
+length of its value found across all maps in MAPS."
   (let ((init (seq-reduce (lambda (acc key) (plist-put acc key 0)) keys '())))
     (seq-reduce
      (lambda (acc map)
@@ -233,7 +245,7 @@
      maps init)))
 
 (defun tunnelblick--format-statuses (status key->max-val)
-  "Format STATUSES with KEY->MAX-VAL"
+  "Format STATUS with KEY->MAX-VAL."
   (string-join
    (mapcar
     (lambda (status-key)
@@ -277,7 +289,7 @@
     (let ((new-profile (read-file-name "Select a profile configuration: " nil nil t)))
       (cl-case path
 	(:tunnelblickctl (tunnelblick--execute-command "install" new-profile))
-	(:barabara (error "profile installation not implemented for barbara"))))))
+	(:barabara (error "Profile installation not implemented for barbara"))))))
 
 ;;;###autoload
 (defun tunnelblick-profile-set-credentials ()
@@ -291,7 +303,7 @@
 	  (password (read-string "Password: ")))
       (cl-case path
 	(:tunnelblickctl
-	 (error "credential setting not implemented for tunnelblickctl"))
+	 (error "Credential setting not implemented for tunnelblickctl"))
 	(:barabara
 	 (let ((args '()))
 	   (unless (equal username "")
