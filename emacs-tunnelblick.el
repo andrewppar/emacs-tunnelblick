@@ -194,7 +194,7 @@ Signals an error if no CLI executable can be found."
   "Interactively disconnect from a tunnelblick profile."
   (interactive)
   (tunnelblick--initialize-cli)
-  (if-let ((connected-profiles (tunnelblick--connected-profiles)))
+  (if-let* ((connected-profiles (tunnelblick--connected-profiles)))
       (let ((profile (completing-read "Select Profile: " connected-profiles nil t)))
 	(cl-case (plist-get tunnelblick--cli :type)
 	  (:tunnelblickctl
